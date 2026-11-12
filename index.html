@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f4f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141311" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Job Agent">
+<meta name="description" content="Your Job Agent list on your phone">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<title>Job Agent</title>
+<!-- Job Agent phone app (MOBILE_PLAN.md). Holds no keys or personal data: on first launch it asks for your Supabase
+     project URL and publishable key, then your login, and keeps them on this phone. Every read and write is checked by
+     Supabase against your login. Edits go to the 'changes' table; Job Agent on your PC applies them at its next sync. -->
+<style>
+:root{--bg:#f5f4f0;--surface:#fff;--surface2:#eeede8;--fg:#1b1a17;--muted:#5f5b54;--line:#e1dfd8;--line2:#cfccc3;
+  --accent:#4353e0;--accent-fg:#fff;--ok:#15803d;--warn:#b45309;--bad:#b91c1c;--r:12px;
+  --top:env(safe-area-inset-top,0px);--bot:env(safe-area-inset-bottom,0px);--left:env(safe-area-inset-left,0px);--right:env(safe-area-inset-right,0px)}
+/* dark: follows the phone's setting unless you pick Light or Dark under More → Theme */
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#141311;--surface:#1e1d1a;--surface2:#292724;--fg:#f1efe9;--muted:#a49f94;--line:#33302b;--line2:#48443d;
+  --accent:#98a3ff;--accent-fg:#14153a;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#141311;--surface:#1e1d1a;--surface2:#292724;--fg:#f1efe9;--muted:#a49f94;--line:#33302b;--line2:#48443d;
+  --accent:#98a3ff;--accent-fg:#14153a;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;color-scheme:dark}
+:root[data-theme=light]{color-scheme:light}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-text-size-adjust:100%;overscroll-behavior-y:contain}
+body{min-height:100vh;min-height:100dvh;overflow-x:hidden}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{font-size:16px} /* 16px or more: iOS doesn't zoom in on focus */
+a{color:var(--accent)}
+.hide{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+/* frame */
+header.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  padding:calc(var(--top) + 10px) calc(var(--right) + 16px) 8px calc(var(--left) + 16px);border-bottom:1px solid var(--line)}
+header.top .row{display:flex;align-items:center;gap:10px;min-height:36px}
+header.top h1{font-size:20px;margin:0;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+main{padding:12px calc(var(--right) + 16px) calc(var(--bot) + 84px) calc(var(--left) + 16px)}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;background:var(--surface);border-top:1px solid var(--line);
+  padding:4px calc(var(--right) + 6px) calc(var(--bot) + 4px) calc(var(--left) + 6px)}
+nav.tabs button{flex:1;border:0;background:none;padding:6px 0;min-height:52px;display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--muted);font-size:12px}
+nav.tabs button svg{width:24px;height:24px}
+nav.tabs button.on{color:var(--accent);font-weight:600}
+.iconbtn{border:0;background:var(--surface2);border-radius:999px;min-width:40px;height:40px;display:inline-flex;align-items:center;justify-content:center;padding:0 12px;gap:6px}
+.iconbtn svg{width:20px;height:20px}
+/* controls */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line2);
+  background:var(--surface);text-decoration:none;color:var(--fg);font-weight:500}
+.btn.primary{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.btn.block{width:100%}
+.btn.danger{color:var(--bad)}
+.field{display:block;margin:0 0 12px}
+.field>span{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+.in{width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:var(--surface)}
+textarea.in{min-height:88px;resize:vertical}
+.search{position:relative;margin-bottom:10px}
+.search .in{padding-left:38px}
+.search svg{position:absolute;left:12px;top:12px;width:20px;height:20px;color:var(--muted)}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 10px;padding:0 16px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;border:1px solid var(--line2);background:var(--surface);border-radius:999px;padding:7px 13px;font-size:14px;color:var(--muted);min-height:36px}
+.chip b{font-weight:600;margin-left:4px;font-variant-numeric:tabular-nums}
+.chip.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.meta{color:var(--muted);font-size:13px}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{font-size:12.5px;border-radius:6px;padding:2px 8px;background:var(--surface2);color:var(--muted)}
+.tag.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 13%,transparent)}
+.tag.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 13%,transparent)}
+.tag.bad{color:var(--bad);background:color-mix(in srgb,var(--bad) 13%,transparent)}
+.tag.info{color:var(--accent);background:color-mix(in srgb,var(--accent) 13%,transparent)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:12px}
+.card h3{margin:0 0 8px;font-size:15px}
+.empty{text-align:center;color:var(--muted);padding:48px 16px;border:1px dashed var(--line2);border-radius:var(--r)}
+.empty b{display:block;color:var(--fg);margin-bottom:4px}
+/* job list */
+.list{list-style:none;margin:0;padding:0}
+.job{position:relative;margin-bottom:8px;border-radius:var(--r);overflow:hidden;background:var(--line)}
+.job .act{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-weight:600;color:#fff}
+.job .act .l{background:var(--ok)} .job .act span{opacity:0}
+.job.go-right .act{background:var(--ok)} .job.go-left .act{background:var(--bad)}
+.job.go-right .act .r,.job.go-left .act .l{opacity:1}
+.job .face{position:relative;display:grid;grid-template-columns:44px minmax(0,1fr);gap:12px;align-items:start;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--r);padding:12px;touch-action:pan-y;transition:transform .18s ease}
+.job .face.drag{transition:none}
+.score{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:700;font-variant-numeric:tabular-nums;
+  background:var(--surface2);color:var(--muted)}
+.score.hi{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+.score.mid{background:color-mix(in srgb,var(--accent) 14%,transparent);color:var(--accent)}
+.job .t{font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.job .s{color:var(--muted);font-size:13.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.job .tags{margin-top:6px}
+.hint{font-size:12.5px;color:var(--muted);text-align:center;margin:4px 0 12px}
+/* sheet (job details, study track) */
+.sheet{position:fixed;inset:0;z-index:40;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.sheet header.top{border-bottom:1px solid var(--line)}
+.sheet main{padding-bottom:calc(var(--bot) + 32px)}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{border:1px solid var(--line2);background:var(--surface);border-radius:999px;padding:7px 12px;min-height:38px;font-size:14px}
+.seg button.on{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.desc{white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.55;max-height:280px;overflow:hidden;position:relative}
+.desc.full{max-height:none}
+.iv{border-top:1px solid var(--line);padding-top:10px;margin-top:10px}
+/* study */
+.bar{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:6px}
+.bar>i{display:block;height:100%;width:var(--p);background:var(--accent)}
+.row2{display:flex;align-items:center;gap:10px;min-height:52px;padding:8px 0;border-bottom:1px solid var(--line)}
+.row2:last-child{border-bottom:0}
+.row2 .grow{flex:1;min-width:0}
+.row2 select{max-width:132px}
+.check{width:26px;height:26px;flex:0 0 auto;accent-color:var(--ok)}
+.problem.done .grow>div:first-child{color:var(--muted);text-decoration:line-through}
+.filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+/* toast */
+.toast{position:fixed;left:calc(var(--left) + 12px);right:calc(var(--right) + 12px);bottom:calc(var(--bot) + 76px);z-index:60;background:var(--fg);color:var(--bg);
+  border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:12px;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:14px}
+.toast button{margin-left:auto;border:0;background:none;color:var(--bg);font-weight:700;text-decoration:underline;min-height:36px}
+.banner{background:color-mix(in srgb,var(--warn) 14%,transparent);color:var(--warn);border-radius:10px;padding:8px 12px;font-size:13px;margin-bottom:10px}
+/* setup / sign-in */
+.auth{max-width:420px;margin:0 auto;padding:calc(var(--top) + 40px) calc(var(--right) + 20px) calc(var(--bot) + 24px) calc(var(--left) + 20px)}
+.auth .logo{width:56px;height:56px;border-radius:14px;background:var(--accent);color:var(--accent-fg);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:22px;margin-bottom:16px}
+.auth h1{font-size:24px;margin:0 0 6px}
+.err{color:var(--bad);font-size:14px;margin:8px 0}
+@media (min-width:700px){main,.auth{max-width:680px;margin:0 auto}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+"use strict";
+/* ---------- storage (this phone only) ---------- */
+const LS={get(k,d){try{const v=localStorage.getItem("ja."+k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem("ja."+k,JSON.stringify(v))}catch(e){}},del(k){try{localStorage.removeItem("ja."+k)}catch(e){}}};
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const ICON={search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+  jobs:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg>',
+  study:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M9 7h6"/></svg>',
+  more:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>',
+  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>',
+  sync:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 0 1-14 5.3M4 12a8 8 0 0 1 14-5.3"/><path d="M18 3v4h-4M6 21v-4h4"/></svg>'};
+const STATUSES=["New","Saved","Prepared","Applied","Interview","Offer","Rejected","Skipped"];
+const ACTIVE=["New","Saved","Prepared","Applied","Interview"];
+const SKIP_REASONS=["Too senior","Wrong stack","Not this company","Location","Pay","Other"];
+const CITY={bangalore:"Bengaluru",hyderabad:"Hyderabad",chennai:"Chennai",pune:"Pune",mumbai:"Mumbai",delhi_ncr:"Delhi NCR",remote:"Remote India"};
+const LIST_COLS="id,company,title,city,location_raw,work_mode,office_days,salary_text,salary_flag,pay_estimate_lpa,url,apply_url,score,reasons,status,skip_reason,notes,follow_up,interviews,found_at,applied_at,posted_at,closed_at,updated_at";
+
+/* ---------- theme: System (default), Dark or Light ---------- */
+let theme=LS.get("theme","system");
+function applyTheme(){const r=document.documentElement;if(theme==="system")r.removeAttribute("data-theme");else r.setAttribute("data-theme",theme);
+  document.querySelectorAll('meta[name="theme-color"]').forEach(m=>{if(!m.dataset.orig)m.dataset.orig=m.content;
+    m.content=theme==="dark"?"#141311":theme==="light"?"#f5f4f0":m.dataset.orig})}
+applyTheme();
+
+/* ---------- Supabase: sign-in and REST, with the publishable key and your login ---------- */
+let cfg=LS.get("cfg",null),session=LS.get("session",null);
+class AuthError extends Error{}
+async function authCall(grant,body){
+  const r=await fetch(cfg.url+"/auth/v1/token?grant_type="+grant,{method:"POST",headers:{apikey:cfg.key,"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new AuthError(d.error_description||d.msg||d.message||("Sign-in failed (HTTP "+r.status+")"));
+  session={access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Date.now()+(d.expires_in||3600)*1000,email:(d.user||{}).email||""};
+  LS.set("session",session);return session}
+async function token(){
+  if(!session)throw new AuthError("Signed out");
+  if(Date.now()>session.expires_at-60e3){const email=session.email;await authCall("refresh_token",{refresh_token:session.refresh_token});
+    if(!session.email){session.email=email;LS.set("session",session)}}
+  return session.access_token}
+async function rest(path,opt={}){
+  const go=async()=>fetch(cfg.url+"/rest/v1/"+path,{method:opt.method||"GET",body:opt.body?JSON.stringify(opt.body):undefined,
+    headers:{apikey:cfg.key,Authorization:"Bearer "+await token(),"Content-Type":"application/json",...(opt.headers||{})}});
+  let r=await go();
+  if(r.status===401&&session){session.expires_at=0;r=await go()}
+  if(r.status===401)throw new AuthError("Your sign-in has ended. Sign in again.");
+  if(!r.ok){const t=await r.text();throw new Error("Supabase: HTTP "+r.status+" "+t.slice(0,160))}
+  const t=await r.text();return t?JSON.parse(t):null}
+async function restAll(path){/* Supabase returns at most 1000 rows per request */
+  const out=[];for(let from=0;;from+=1000){const rows=await rest(path,{headers:{"Range-Unit":"items",Range:`${from}-${from+999}`}});
+    out.push(...rows);if(rows.length<1000)return out}}
+
+/* ---------- data: the cloud copy + your edits not yet applied by the PC ---------- */
+let D=LS.get("data",{jobs:[],prog:{},meta:{},pending:[],loadedAt:null});
+let queue=LS.get("queue",[]);          // edits made here, not yet sent to Supabase (offline)
+let loading=false,loadError="";
+async function load(){
+  if(loading)return;loading=true;loadError="";render();
+  try{
+    await flush();
+    const [jobs,prog,meta,pending]=await Promise.all([restAll("jobs?select="+LIST_COLS+"&order=score.desc,found_at.desc"),
+      restAll("study_progress?select=item,status,note,done_at"),rest("meta?select=key,value"),restAll("changes?select=kind,target,field,value,at&order=at.asc")]);
+    D={jobs,prog:Object.fromEntries(prog.map(p=>[p.item,p])),meta:Object.fromEntries((meta||[]).map(m=>[m.key,m.value])),pending,loadedAt:new Date().toISOString()};
+    LS.set("data",D);
+  }catch(e){if(e instanceof AuthError){signOutLocal();return}loadError=navigator.onLine?e.message:"Offline: showing what was last loaded."}
+  finally{loading=false;render()}}
+let flushing=null;   // one send at a time: coming back online can fire several triggers at once
+function flush(){if(flushing)return flushing;
+  flushing=(async()=>{while(queue.length&&navigator.onLine){const batch=queue.slice();
+      await rest("changes",{method:"POST",body:batch.map(({kind,target,field,value})=>({kind,target,field,value})),headers:{Prefer:"return=minimal"}});
+      D.pending=(D.pending||[]).concat(batch);queue=queue.slice(batch.length);LS.set("queue",queue);LS.set("data",D)}})()
+    .finally(()=>{flushing=null});
+  return flushing}
+/* the job list as it stands with your edits on top */
+function edits(){return (D.pending||[]).concat(queue)}
+function jobsView(){const by=new Map(D.jobs.map(j=>[String(j.id),{...j}]));
+  for(const c of edits())if(c.kind==="job"&&by.has(c.target))by.get(c.target)[c.field]=c.value;return [...by.values()]}
+function progView(){const p={};for(const [k,v] of Object.entries(D.prog||{}))p[k]={...v};
+  for(const c of edits())if(c.kind==="study"){p[c.target]=p[c.target]||{status:"not started",note:""};p[c.target][c.field]=c.value}return p}
+function edit(kind,target,field,value){queue.push({kind,target:String(target),field,value,at:new Date().toISOString()});LS.set("queue",queue);
+  render();flush().catch(()=>{})}
+const isDone=(p,id)=>["done","needs revision"].includes((p[id]||{}).status);
+
+/* ---------- small helpers ---------- */
+const reasonsOf=j=>Array.isArray(j.reasons)?j.reasons:[];
+const ivsOf=j=>Array.isArray(j.interviews)?j.interviews:[];
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const ago=iso=>{if(!iso)return"";const s=(Date.now()-new Date(iso))/1000;return s<90?"just now":s<3600?Math.round(s/60)+" min ago":s<86400?Math.round(s/3600)+" h ago":Math.round(s/86400)+" d ago"};
+const fmtDate=s=>s?new Date(s.length===10?s+"T00:00":s).toLocaleDateString(undefined,{day:"numeric",month:"short"}):"";
+const scoreMax=()=>((D.meta||{}).info||{}).score_max||23;
+const band=s=>s>=scoreMax()*.6?"hi":s>=scoreMax()*.4?"mid":"";
+const modeText=j=>j.work_mode==="remote"?"Remote":j.work_mode==="hybrid"?"Hybrid"+(j.office_days!=null?` · ${j.office_days} d`:""):j.work_mode==="onsite"?"On-site":"";
+const simKey=j=>String(j.company||"").toLowerCase().replace(/[^a-z0-9]/g,"")+"|"+String(j.title||"").toLowerCase().replace(/\(.*?\)|\[.*?\]|\b(req|job)?\s*#?\d{4,}\b/g," ").replace(/[^a-z0-9+#]+/g," ").trim();
+let toastTimer=null;
+function toast(msg,action,fn){let t=$("toast");if(!t){t=document.createElement("div");t.id="toast";t.className="toast";t.setAttribute("role","status");document.body.appendChild(t)}
+  t.innerHTML=`<span>${esc(msg)}</span>${action?`<button id="toastAct">${esc(action)}</button>`:""}`;t.classList.remove("hide");
+  if(action)$("toastAct").onclick=()=>{t.classList.add("hide");fn()};clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.add("hide"),action?6000:2600)}
+
+/* ---------- screens ---------- */
+let tab=LS.get("tab","jobs"),fStatus=LS.get("fstatus","active"),fQuery="",sortBy=LS.get("sort","score"),studyView=LS.get("sview","tracks");
+let openJob=null,openTrack=null,pf={q:"",pattern:"",list:"",open:false};
+function render(){const app=$("app");
+  if(!cfg){app.innerHTML=setupHtml();bindSetup();return}
+  if(!session){app.innerHTML=signInHtml();bindSignIn();return}
+  const keepScroll=openJob||openTrack?null:scrollY;
+  app.innerHTML=`<header class="top"><div class="row"><h1>${tab==="jobs"?"Jobs":tab==="study"?"Study":"More"}</h1>
+      <button class="iconbtn" id="refresh" aria-label="Refresh">${ICON.sync}${loading?'<span class="meta">…</span>':""}</button></div></header>
+    <main id="main">${loadError?`<div class="banner">${esc(loadError)}</div>`:""}${tab==="jobs"?jobsHtml():tab==="study"?studyHtml():moreHtml()}</main>
+    <nav class="tabs" aria-label="Sections">${[["jobs","Jobs"],["study","Study"],["more","More"]].map(([k,l])=>`<button data-tab="${k}" class="${tab===k?"on":""}"${tab===k?' aria-current="page"':""}>${ICON[k]}${l}</button>`).join("")}</nav>
+    ${openJob?jobSheet():""}${openTrack?trackSheet():""}`;
+  bindMain();if(keepScroll!=null)scrollTo(0,keepScroll)}
+
+/* setup and sign-in */
+function setupHtml(){return `<div class="auth"><div class="logo">JA</div><h1>Connect to your data</h1>
+  <p class="meta">Once, on this phone: your Supabase project URL and publishable key (Supabase → Project Settings → API Keys). They stay on this phone.</p>
+  <form id="setup"><label class="field"><span>Project URL</span><input class="in" id="su" type="url" inputmode="url" autocomplete="off" required placeholder="https://xxxx.supabase.co"></label>
+  <label class="field"><span>Publishable key</span><input class="in" id="sk" autocomplete="off" autocapitalize="off" spellcheck="false" required placeholder="sb_publishable_…"></label>
+  <p class="err hide" id="serr"></p><button class="btn primary block">Continue</button></form>
+  <p class="meta" style="margin-top:14px">Never the secret key here: that one stays on your PC.</p></div>`}
+function bindSetup(){$("setup").onsubmit=e=>{e.preventDefault();const url=$("su").value.trim().replace(/\/+$/,""),key=$("sk").value.trim();
+  if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)&&!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/\w+)?$/.test(url)){   /* localhost: Job Agent's own tests */$("serr").textContent="The project URL looks like https://xxxx.supabase.co";$("serr").classList.remove("hide");return}
+  if(/^sb_secret_/i.test(key)){$("serr").textContent="That's the secret key: use the publishable one.";$("serr").classList.remove("hide");return}
+  cfg={url,key};LS.set("cfg",cfg);render()}}
+function signInHtml(){return `<div class="auth"><div class="logo">JA</div><h1>Sign in</h1><p class="meta">With the login you created in Supabase. You stay signed in on this phone.</p>
+  <form id="signin"><label class="field"><span>Email</span><input class="in" id="em" type="email" autocomplete="username" required></label>
+  <label class="field"><span>Password</span><input class="in" id="pw" type="password" autocomplete="current-password" required></label>
+  <p class="err hide" id="err"></p><button class="btn primary block" id="sib">Sign in</button></form>
+  <p style="margin-top:16px"><button class="btn block" id="reset">Use a different project</button></p></div>`}
+function bindSignIn(){$("signin").onsubmit=async e=>{e.preventDefault();$("sib").disabled=true;$("err").classList.add("hide");
+  try{await authCall("password",{email:$("em").value.trim(),password:$("pw").value});render();load()}
+  catch(err){$("err").textContent=err instanceof AuthError?err.message:"Can't reach Supabase. Check the connection and the project URL.";$("err").classList.remove("hide")}
+  finally{if($("sib"))$("sib").disabled=false}};
+  $("reset").onclick=()=>{cfg=null;LS.del("cfg");render()}}
+function signOutLocal(){session=null;LS.del("session");LS.del("data");LS.del("queue");queue=[];D={jobs:[],prog:{},meta:{},pending:[],loadedAt:null};openJob=openTrack=null;render()}
+
+/* jobs */
+function filtered(){const q=fQuery.toLowerCase();let js=jobsView();
+  js=js.filter(j=>fStatus==="active"?ACTIVE.includes(j.status)&&!j.closed_at:fStatus==="all"?true:fStatus==="due"?j.follow_up&&j.follow_up<=today()&&ACTIVE.includes(j.status):j.status===fStatus);
+  if(q)js=js.filter(j=>[j.title,j.company,j.location_raw,j.notes].join(" ").toLowerCase().includes(q));
+  js.sort(sortBy==="new"?(a,b)=>String(b.found_at).localeCompare(String(a.found_at)):sortBy==="posted"?(a,b)=>String(b.posted_at||"").localeCompare(String(a.posted_at||"")):(a,b)=>b.score-a.score);
+  const groups=new Map();for(const j of js){const k=simKey(j);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(j)}
+  return [...groups.values()]}
+function counts(){const js=jobsView(),u=a=>new Set(a.map(simKey)).size;
+  return {active:u(js.filter(j=>ACTIVE.includes(j.status)&&!j.closed_at)),due:u(js.filter(j=>j.follow_up&&j.follow_up<=today()&&ACTIVE.includes(j.status))),
+    all:u(js),...Object.fromEntries(STATUSES.map(s=>[s,u(js.filter(j=>j.status===s))]))}}
+function jobsHtml(){if(!D.loadedAt&&loading)return `<p class="meta">Loading your jobs…</p>`;
+  const c=counts(),gs=filtered(),shown=gs.slice(0,250);
+  const chip=(k,l)=>c[k]||fStatus===k?`<button class="chip ${fStatus===k?"on":""}" data-f="${k}">${l}<b>${c[k]||0}</b></button>`:"";
+  return `<div class="search">${ICON.search}<input class="in" id="q" type="search" placeholder="Search title, company, notes" value="${esc(fQuery)}" aria-label="Search jobs"></div>
+  <div class="chips" role="group" aria-label="Status">${chip("active","Active")}${chip("due","Follow up")}${chip("New","New")}${chip("Saved","Saved")}${chip("Applied","Applied")}${chip("Interview","Interview")}${chip("Offer","Offer")}${chip("Skipped","Skipped")}${chip("Rejected","Rejected")}${chip("all","All")}</div>
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span class="meta" style="flex:1">${gs.length} jobs${gs.length>shown.length?`, first ${shown.length}`:""}</span>
+    <select class="in" id="sort" style="width:auto;min-height:36px;padding:4px 8px;font-size:14px" aria-label="Sort"><option value="score" ${sortBy==="score"?"selected":""}>Best match</option><option value="new" ${sortBy==="new"?"selected":""}>Newest found</option><option value="posted" ${sortBy==="posted"?"selected":""}>Newest posted</option></select></div>
+  ${shown.length?`<p class="hint">Swipe right to save, left to skip. Tap for details.</p><ul class="list">${shown.map(g=>jobCard(g)).join("")}</ul>`
+    :`<div class="empty"><b>No jobs here</b>${D.loadedAt?"Try another filter.":"Pull the list with the refresh button."}</div>`}`}
+function jobCard(g){const j=g[0],due=j.follow_up&&j.follow_up<=today()&&ACTIVE.includes(j.status);
+  return `<li class="job" data-id="${j.id}"><div class="act"><span class="l">Skip</span><span class="r">Save</span></div>
+    <div class="face" role="button" tabindex="0" aria-label="${esc(j.title)} at ${esc(j.company)}"><div class="score ${band(j.score)}">${j.score}</div>
+    <div><div class="t">${esc(j.title)}</div><div class="s">${esc(j.company)} · ${esc(CITY[j.city]||j.city||"City not stated")}${modeText(j)?" · "+esc(modeText(j)):""}</div>
+    <div class="tags">${j.status!=="New"?`<span class="tag ${j.status==="Skipped"||j.status==="Rejected"?"bad":j.status==="Offer"?"ok":"info"}">${esc(j.status)}</span>`:""}
+      ${j.salary_flag==="listed"&&j.salary_text?`<span class="tag ok">${esc(j.salary_text)}</span>`:""}${due?`<span class="tag warn">Follow up ${esc(fmtDate(j.follow_up))}</span>`:""}
+      ${g.length>1?`<span class="tag">+${g.length-1} similar</span>`:""}${j.closed_at?`<span class="tag bad">No longer listed</span>`:""}</div></div></div></li>`}
+function setStatus(j,status){const prev=j.status;edit("job",j.id,"status",status);
+  toast(`${j.title.slice(0,32)}: ${status}`,"Undo",()=>edit("job",j.id,"status",prev))}
+let descCache={};
+function jobSheet(){const j=jobsView().find(x=>x.id===openJob);if(!j){openJob=null;return ""}
+  const sims=jobsView().filter(x=>x.id!==j.id&&simKey(x)===simKey(j)),ivs=ivsOf(j),d=descCache[j.id];
+  return `<div class="sheet" id="sheet" role="dialog" aria-label="${esc(j.title)}"><header class="top"><div class="row"><button class="iconbtn" id="close" aria-label="Back">${ICON.back}</button>
+    <h1 style="font-size:17px">${esc(j.company)}</h1><div class="score ${band(j.score)}" title="Match score ${j.score} of ${scoreMax()}">${j.score}</div></div></header>
+  <main><h2 style="margin:0 0 6px;font-size:19px;line-height:1.3;overflow-wrap:anywhere">${esc(j.title)}</h2>
+    <p class="meta" style="margin:0 0 10px">${esc(j.location_raw||"")}</p>
+    <div class="tags" style="margin-bottom:12px"><span class="tag">${esc(CITY[j.city]||j.city||"City not stated")}</span>${modeText(j)?`<span class="tag">${esc(modeText(j))}</span>`:""}
+      <span class="tag ${j.salary_flag==="listed"?"ok":""}">${j.salary_flag==="listed"?esc(j.salary_text):"Pay not listed"}</span>${j.posted_at?`<span class="tag">Posted ${esc(fmtDate(j.posted_at))}</span>`:""}</div>
+    ${j.url?`<a class="btn primary block" href="${esc(j.apply_url||j.url)}" target="_blank" rel="noopener" style="margin-bottom:14px">Open posting ↗</a>`:""}
+    <div class="card"><h3>Status</h3><div class="seg" role="group" aria-label="Status">${STATUSES.map(s=>`<button data-st="${s}" class="${j.status===s?"on":""}" aria-pressed="${j.status===s}">${s}</button>`).join("")}</div>
+      ${j.status==="Skipped"?`<p class="meta" style="margin:10px 0 6px">Why you skipped it</p><div class="seg">${SKIP_REASONS.map(r=>`<button data-skip="${esc(r)}" class="${j.skip_reason===r?"on":""}">${esc(r)}</button>`).join("")}</div>`:""}</div>
+    <div class="card"><div class="kv"><label class="field" style="margin:0"><span>Follow up on</span><input class="in" type="date" id="fu" value="${esc((j.follow_up||"").slice(0,10))}"></label>
+      <label class="field" style="margin:0"><span>Pay estimate (LPA)</span><input class="in" type="number" inputmode="decimal" min="0" step="0.5" id="pe" value="${esc(j.pay_estimate_lpa??"")}"></label></div>
+      <button class="btn" id="fu7" style="margin-top:10px">Follow up in a week</button></div>
+    <div class="card"><h3>Notes</h3><textarea class="in" id="nt" placeholder="Recruiter, referral, how it went…">${esc(j.notes||"")}</textarea></div>
+    <div class="card"><h3 style="display:flex;align-items:center">Interviews<button class="btn" id="ivAdd" style="margin-left:auto;min-height:36px">+ Add</button></h3>
+      ${ivs.length?ivs.map((iv,i)=>`<div class="iv" data-iv="${i}"><div class="kv"><label class="field"><span>When</span><input class="in" type="datetime-local" data-k="at" value="${esc((iv.at||"").slice(0,16))}"></label>
+        <label class="field"><span>Round</span><input class="in" data-k="round" value="${esc(iv.round||"")}" placeholder="DSA, system design…"></label></div>
+        <label class="field"><span>With</span><input class="in" data-k="with" value="${esc(iv.with||"")}"></label>
+        <label class="field"><span>Prep notes</span><textarea class="in" data-k="notes">${esc(iv.notes||"")}</textarea></label>
+        <button class="btn danger" data-ivrm="${i}">Remove</button></div>`).join(""):`<p class="meta" style="margin:0">None yet.</p>`}</div>
+    ${reasonsOf(j).length?`<div class="card"><h3>Why it matched</h3><div class="tags">${reasonsOf(j).map(r=>`<span class="tag">${esc(r)}</span>`).join("")}</div></div>`:""}
+    ${sims.length?`<div class="card"><h3>${sims.length} similar posting${sims.length>1?"s":""}</h3>${sims.map(s=>`<p style="margin:6px 0"><a href="${esc(s.apply_url||s.url)}" target="_blank" rel="noopener">${esc(s.location_raw||s.title)}</a> <span class="meta">${esc(s.status)}</span></p>`).join("")}</div>`:""}
+    <div class="card"><h3>Description</h3><div class="desc" id="desc">${d===undefined?'<span class="meta">Loading…</span>':esc(d||"(none)")}</div>
+      <button class="btn" id="dmore" style="margin-top:8px">Show all</button></div></main></div>`}
+function ivCollect(){return [...document.querySelectorAll("#sheet .iv")].map(b=>{const o={};b.querySelectorAll("[data-k]").forEach(i=>o[i.dataset.k]=i.value);return o})}
+async function loadDesc(id){if(descCache[id]!==undefined)return;try{const r=await rest("jobs?id=eq."+id+"&select=description");descCache[id]=(r[0]||{}).description||""}
+  catch(e){descCache[id]=navigator.onLine?"(couldn't load the description)":"(offline: the description loads when you're back online)"}
+  if(openJob===id&&$("desc"))$("desc").textContent=descCache[id]||"(none)"}
+
+/* study */
+function studyHtml(){const st=(D.meta||{}).study;if(!st)return `<div class="empty"><b>No study data yet</b>It arrives with the PC's next sync.</div>`;
+  const seg=`<div class="chips" role="group" aria-label="Study views">${[["tracks","Tracks"],["problems","Problems"],["companies","Company prep"]].map(([k,l])=>`<button class="chip ${studyView===k?"on":""}" data-sv="${k}">${l}</button>`).join("")}</div>`;
+  return seg+(studyView==="problems"?problemsHtml(st):studyView==="companies"?companiesHtml(st):tracksHtml(st))}
+function trackProgress(t,p,st){let ids=t.topics.flatMap(x=>x.items.map(i=>i.item));
+  if(t.id==="dsa")ids=ids.concat(st.problems.filter(x=>(x.lists||[]).includes("NeetCode 150")).map(x=>"lc:"+x.slug));
+  const done=ids.filter(i=>isDone(p,i)).length;return {done,total:ids.length,pct:ids.length?done/ids.length:0}}
+function tracksHtml(st){const p=progView();
+  return st.tracks.map(t=>{const g=trackProgress(t,p,st);return `<button class="card" data-track="${esc(t.id)}" style="display:block;width:100%;text-align:left">
+    <div style="display:flex;gap:8px"><b style="flex:1">${esc(t.title)}</b><span class="meta">${g.done}/${g.total}</span></div><div class="bar"><i style="--p:${Math.round(g.pct*100)}%"></i></div></button>`}).join("")}
+/* on a phone: videos and readable pages first; coding sites (LeetCode) are left for the PC */
+const CODING=/(^|\.)(leetcode\.com|hackerrank\.com|codeforces\.com|codechef\.com)$/i;
+function mobileLinks(links){const ok=(links||[]).filter(([,u])=>{try{return !CODING.test(new URL(u).hostname)}catch(e){return false}});
+  return ok.sort((a,b)=>(/youtube\.com|youtu\.be/.test(b[1])?1:0)-(/youtube\.com|youtu\.be/.test(a[1])?1:0))}
+function trackSheet(){const st=(D.meta||{}).study,t=st&&st.tracks.find(x=>x.id===openTrack);if(!t){openTrack=null;return ""}
+  const p=progView(),g=trackProgress(t,p,st),opts=["not started","in progress","done","needs revision"];
+  return `<div class="sheet" id="sheet" role="dialog" aria-label="${esc(t.title)}"><header class="top"><div class="row"><button class="iconbtn" id="close" aria-label="Back">${ICON.back}</button><h1 style="font-size:17px">${esc(t.title)}</h1><span class="meta">${g.done}/${g.total}</span></div></header>
+  <main><div class="bar" style="margin-bottom:14px"><i style="--p:${Math.round(g.pct*100)}%"></i></div>
+  ${t.id==="dsa"?`<p class="meta">Includes the NeetCode 150: tick them under Problems.</p>`:""}
+  ${t.topics.map(top=>`<div class="card"><h3>${esc(top.title)}</h3>
+    ${(top.watch||[]).length?`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px">${top.watch.map(([n,u])=>`<a class="btn" style="justify-content:flex-start;text-align:left;min-height:44px" href="${esc(u)}" target="_blank" rel="noopener">▶ ${esc(n)}</a>`).join("")}</div>`:""}
+    ${top.items.length?top.items.map(it=>{const s=(p[it.item]||{}).status||"not started",ls=mobileLinks(it.links);return `<div class="row2"><div class="grow"><div>${esc(it.title)}</div>
+    ${ls.length?`<div class="meta">${ls.map(([n,u])=>`<a href="${esc(u)}" target="_blank" rel="noopener">${/youtube\.com|youtu\.be/.test(u)?"▶ ":""}${esc(n)}</a>`).join(" · ")}</div>`
+      :(it.links||[]).length?`<div class="meta">Practice on your PC</div>`:""}</div>
+    <select class="in" data-item="${esc(it.item)}" aria-label="Status of ${esc(it.title)}" style="min-height:40px;padding:6px 8px;font-size:14px">${opts.map(o=>`<option ${o===s?"selected":""}>${o}</option>`).join("")}</select></div>`}).join(""):`<p class="meta">Nothing here.</p>`}</div>`).join("")}</main></div>`}
+function problemsHtml(st){const p=progView(),q=pf.q.toLowerCase();let ps=st.problems;
+  if(pf.pattern)ps=ps.filter(x=>x.pattern===pf.pattern);
+  if(pf.list){const [k,v]=pf.list.split(":");ps=ps.filter(x=>k==="c"?(x.companies||[]).includes(v):(x.lists||[]).includes(v))}
+  if(pf.open)ps=ps.filter(x=>!isDone(p,"lc:"+x.slug));if(q)ps=ps.filter(x=>x.title.toLowerCase().includes(q));
+  const pats=[...new Set(st.problems.map(x=>x.pattern).filter(Boolean))],shown=ps.slice(0,200);
+  return `<div class="search">${ICON.search}<input class="in" id="pq" type="search" placeholder="Search problems" value="${esc(pf.q)}" aria-label="Search problems"></div>
+  <div class="filters"><select class="in" id="pp" aria-label="Pattern"><option value="">All patterns</option>${pats.map(x=>`<option ${x===pf.pattern?"selected":""}>${esc(x)}</option>`).join("")}</select>
+    <select class="in" id="pl" aria-label="List"><option value="">All lists</option>${["NeetCode 150","Blind 75"].map(l=>`<option value="l:${l}" ${pf.list==="l:"+l?"selected":""}>${l}</option>`).join("")}
+      ${st.companies.length?`<optgroup label="Asked at">${st.companies.map(c=>`<option value="c:${esc(c.company)}" ${pf.list==="c:"+c.company?"selected":""}>${esc(c.company)}</option>`).join("")}</optgroup>`:""}</select></div>
+  <label class="row2" style="min-height:44px;border:0"><input type="checkbox" class="check" id="po" ${pf.open?"checked":""}><span>Not solved only</span></label>
+  <p class="meta">${ps.length} problems · ${ps.filter(x=>isDone(p,"lc:"+x.slug)).length} solved${ps.length>shown.length?` · first ${shown.length} shown`:""}</p>
+  <div class="card" style="padding:4px 14px">${shown.map(x=>{const d=isDone(p,"lc:"+x.slug);return `<label class="row2 problem ${d?"done":""}"><input type="checkbox" class="check" data-prob="${esc(x.slug)}" ${d?"checked":""} aria-label="Solved ${esc(x.title)}">
+    <div class="grow"><div>${esc(x.title)}</div><div class="meta">${esc(x.difficulty||"")}${x.pattern?" · "+esc(x.pattern):""}${(x.companies||[]).length?" · "+esc(x.companies.slice(0,3).join(", "))+(x.companies.length>3?" +"+(x.companies.length-3):""):""}</div></div>
+    ${x.video?`<a class="btn" style="min-height:36px;padding:0 10px" href="${esc(x.video)}" target="_blank" rel="noopener" aria-label="NeetCode video: ${esc(x.title)}">▶ Video</a>`
+      :`<a class="btn" style="min-height:36px;padding:0 10px" href="https://www.youtube.com/results?search_query=${encodeURIComponent("leetcode "+x.title+" explained")}" target="_blank" rel="noopener" aria-label="Search YouTube for ${esc(x.title)}">▶ Search</a>`}</label>`}).join("")||'<p class="meta">No problems match.</p>'}</div>
+  <p class="meta">Videos: NeetCode's explanation of each problem. Problems only on a company's list open a YouTube search instead. Solve them on your PC; tick them here.</p>`}
+function companiesHtml(st){const p=progView();
+  if(!st.companies.length)return `<div class="empty"><b>No company lists yet</b>Download them in the Study tab on your PC.</div>`;
+  return st.companies.slice().sort((a,b)=>b.jobs-a.jobs).map(c=>{const st2=(D.meta.study.problems||[]).filter(x=>(x.companies||[]).includes(c.company));
+    const solved=st2.filter(x=>isDone(p,"lc:"+x.slug)).length,tot=st2.length||c.total;
+    return `<button class="card" data-comp="${esc(c.company)}" style="display:block;width:100%;text-align:left"><div style="display:flex;gap:8px"><b style="flex:1">${esc(c.company)}</b><span class="meta">${c.jobs} jobs</span></div>
+      <div class="meta">${solved} of ${tot} recent questions solved${c.points?` · +${c.points}`:""}</div><div class="bar"><i style="--p:${tot?Math.round(solved/tot*100):0}%"></i></div></button>`}).join("")}
+
+/* more */
+function moreHtml(){const info=(D.meta||{}).info||{};
+  return `<div class="card"><h3>Signed in</h3><p style="margin:0;overflow-wrap:anywhere">${esc(session.email||"")}</p></div>
+  <div class="card"><h3>Data</h3><p class="meta" style="margin:0 0 4px">Your PC last synced ${esc(info.synced_at?ago(info.synced_at):"never")}. This phone loaded ${esc(D.loadedAt?ago(D.loadedAt):"nothing yet")}.</p>
+    <p class="meta" style="margin:0">${edits().length} edit${edits().length===1?"":"s"} waiting for the PC${queue.length?` (${queue.length} not sent yet: offline)`:""}. They're applied when Job Agent next syncs on your PC.</p>
+    <button class="btn block" id="reload" style="margin-top:10px">Reload from the cloud</button></div>
+  <div class="card"><h3>Theme</h3><div class="seg" role="group" aria-label="Theme">${[["system","System"],["dark","Dark"],["light","Light"]].map(([k,l])=>`<button data-theme-set="${k}" class="${theme===k?"on":""}" aria-pressed="${theme===k}">${l}</button>`).join("")}</div>
+    <p class="meta" style="margin:8px 0 0">System follows your phone's light or dark setting.</p></div>
+  <div class="card"><h3>Install</h3><p class="meta" style="margin:0">iPhone: Safari → Share → Add to Home Screen. Android: Chrome menu → Install app.</p></div>
+  <button class="btn danger block" id="signout">Sign out</button>`}
+
+/* events */
+function bindMain(){
+  document.querySelectorAll("[data-tab]").forEach(b=>b.onclick=()=>{tab=b.dataset.tab;LS.set("tab",tab);openJob=openTrack=null;render();scrollTo(0,0)});
+  $("refresh").onclick=()=>load();
+  if(tab==="jobs"&&!openJob){const q=$("q");if(q)q.oninput=()=>{fQuery=q.value;const pos=q.selectionStart;render();const n=$("q");n.focus();n.setSelectionRange(pos,pos)};
+    document.querySelectorAll("[data-f]").forEach(b=>b.onclick=()=>{fStatus=b.dataset.f;LS.set("fstatus",fStatus);render()});
+    const s=$("sort");if(s)s.onchange=()=>{sortBy=s.value;LS.set("sort",sortBy);render()};
+    document.querySelectorAll(".job").forEach(bindSwipe)}
+  if(tab==="study"){document.querySelectorAll("[data-sv]").forEach(b=>b.onclick=()=>{studyView=b.dataset.sv;LS.set("sview",studyView);render()});
+    document.querySelectorAll("[data-track]").forEach(b=>b.onclick=()=>{openTrack=b.dataset.track;history.pushState({s:1},"");render()});
+    document.querySelectorAll("[data-comp]").forEach(b=>b.onclick=()=>{pf={q:"",pattern:"",list:"c:"+b.dataset.comp,open:false};studyView="problems";render();scrollTo(0,0)});
+    document.querySelectorAll("[data-prob]").forEach(c=>c.onchange=()=>edit("study","lc:"+c.dataset.prob,"status",c.checked?"done":"not started"));
+    const pq=$("pq");if(pq)pq.oninput=()=>{pf.q=pq.value;const pos=pq.selectionStart;render();const n=$("pq");n.focus();n.setSelectionRange(pos,pos)};
+    [["pp","pattern"],["pl","list"]].forEach(([id,k])=>{const e=$(id);if(e)e.onchange=()=>{pf[k]=e.value;render()}});
+    const po=$("po");if(po)po.onchange=()=>{pf.open=po.checked;render()}}
+  if(tab==="more"){document.querySelectorAll("[data-theme-set]").forEach(b=>b.onclick=()=>{theme=b.dataset.themeSet;LS.set("theme",theme);applyTheme();render()});
+    const r=$("reload");if(r)r.onclick=()=>load();const so=$("signout");if(so)so.onclick=async()=>{
+    if(queue.length&&!confirm(queue.length+" edits haven't reached the cloud yet (offline). Sign out anyway?"))return;
+    try{await fetch(cfg.url+"/auth/v1/logout",{method:"POST",headers:{apikey:cfg.key,Authorization:"Bearer "+session.access_token}})}catch(e){}signOutLocal()}}
+  if(openJob)bindJobSheet();if(openTrack)bindTrackSheet()}
+function closeSheet(){if(history.state&&history.state.s)history.back();else{openJob=openTrack=null;render()}}
+addEventListener("popstate",()=>{if(openJob||openTrack){openJob=openTrack=null;render()}});
+function bindJobSheet(){const j=jobsView().find(x=>x.id===openJob);$("close").onclick=closeSheet;loadDesc(j.id);
+  document.querySelectorAll("[data-st]").forEach(b=>b.onclick=()=>{if(b.dataset.st!==j.status)edit("job",j.id,"status",b.dataset.st)});
+  document.querySelectorAll("[data-skip]").forEach(b=>b.onclick=()=>edit("job",j.id,"skip_reason",b.dataset.skip));
+  $("fu").onchange=e=>edit("job",j.id,"follow_up",e.target.value||null);
+  $("fu7").onclick=()=>{const d=new Date(Date.now()+7*864e5);edit("job",j.id,"follow_up",d.toISOString().slice(0,10));toast("Follow-up set for "+fmtDate(d.toISOString().slice(0,10)))};
+  $("pe").onchange=e=>edit("job",j.id,"pay_estimate_lpa",e.target.value===""?null:+e.target.value);
+  $("nt").onchange=e=>{if(e.target.value!==(j.notes||""))edit("job",j.id,"notes",e.target.value)};
+  $("ivAdd").onclick=()=>{const l=ivCollect();const d=new Date(Date.now()+864e5);l.push({at:d.toISOString().slice(0,10)+"T11:00",round:"",with:"",notes:""});
+    edit("job",j.id,"interviews",l);if(["New","Saved","Prepared","Applied"].includes(j.status)){edit("job",j.id,"status","Interview");toast("Status set to Interview.")}};
+  document.querySelectorAll("#sheet .iv [data-k]").forEach(i=>i.onchange=()=>edit("job",j.id,"interviews",ivCollect()));
+  document.querySelectorAll("[data-ivrm]").forEach(b=>b.onclick=()=>{const l=ivCollect();l.splice(+b.dataset.ivrm,1);edit("job",j.id,"interviews",l)});
+  $("dmore").onclick=()=>{const d=$("desc");d.classList.toggle("full");$("dmore").textContent=d.classList.contains("full")?"Show less":"Show all"}}
+function bindTrackSheet(){$("close").onclick=closeSheet;
+  document.querySelectorAll("[data-item]").forEach(s=>s.onchange=()=>edit("study",s.dataset.item,"status",s.value))}
+/* swipe: right = Saved, left = Skipped; a short tap opens the details */
+function bindSwipe(li){const face=li.querySelector(".face"),id=+li.dataset.id;let x0=0,y0=0,dx=0,dir=null;
+  const open=()=>{openJob=id;history.pushState({s:1},"");render()};
+  face.addEventListener("click",()=>{if(dir!=="h")open()});
+  face.addEventListener("keydown",e=>{if(e.key==="Enter")open()});
+  face.addEventListener("touchstart",e=>{x0=e.touches[0].clientX;y0=e.touches[0].clientY;dx=0;dir=null;face.classList.add("drag")},{passive:true});
+  face.addEventListener("touchmove",e=>{const mx=e.touches[0].clientX-x0,my=e.touches[0].clientY-y0;
+    if(!dir&&(Math.abs(mx)>10||Math.abs(my)>10))dir=Math.abs(mx)>Math.abs(my)?"h":"v";
+    if(dir!=="h")return;dx=mx;face.style.transform=`translateX(${dx}px)`;li.classList.toggle("go-right",dx>0);li.classList.toggle("go-left",dx<0)},{passive:true});
+  face.addEventListener("touchend",()=>{face.classList.remove("drag");const j=jobsView().find(x=>x.id===id);
+    if(dir==="h"&&Math.abs(dx)>90&&j){face.style.transform=`translateX(${dx>0?"110%":"-110%"})`;setTimeout(()=>setStatus(j,dx>0?"Saved":"Skipped"),160)}
+    else{face.style.transform="";li.classList.remove("go-right","go-left")}
+    setTimeout(()=>{dir=null},50)})}
+
+addEventListener("online",()=>{flush().then(()=>render()).catch(()=>{})});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden&&session&&(!D.loadedAt||Date.now()-new Date(D.loadedAt)>5*60e3))load()});
+if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+render();if(cfg&&session)load();
+</script>
+</body>
+</html>
