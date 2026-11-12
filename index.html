@@ -245,7 +245,7 @@ function render(){const app=$("app");
   bindMain();if(keepScroll!=null)scrollTo(0,keepScroll)}
 
 /* setup and sign-in */
-function setupHtml(){return `<div class="auth"><div class="logo">JA</div><h1>Connect to your data</h1>
+function setupHtml(){return `<div class="auth"><img class="logo" src="icon-192.png" alt=""><h1>Connect to your data</h1>
   <p class="meta">Once, on this phone: your Supabase project URL and publishable key (Supabase → Project Settings → API Keys). They stay on this phone.</p>
   <form id="setup"><label class="field"><span>Project URL</span><input class="in" id="su" type="url" inputmode="url" autocomplete="off" required placeholder="https://xxxx.supabase.co"></label>
   <label class="field"><span>Publishable key</span><input class="in" id="sk" autocomplete="off" autocapitalize="off" spellcheck="false" required placeholder="sb_publishable_…"></label>
@@ -255,7 +255,7 @@ function bindSetup(){$("setup").onsubmit=e=>{e.preventDefault();const url=$("su"
   if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)&&!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/\w+)?$/.test(url)){   /* localhost: Job Agent's own tests */$("serr").textContent="The project URL looks like https://xxxx.supabase.co";$("serr").classList.remove("hide");return}
   if(/^sb_secret_/i.test(key)){$("serr").textContent="That's the secret key: use the publishable one.";$("serr").classList.remove("hide");return}
   cfg={url,key};LS.set("cfg",cfg);render()}}
-function signInHtml(){return `<div class="auth"><div class="logo">JA</div><h1>Sign in</h1><p class="meta">With the login you created in Supabase. You stay signed in on this phone.</p>
+function signInHtml(){return `<div class="auth"><img class="logo" src="icon-192.png" alt=""><h1>Sign in</h1><p class="meta">With the login you created in Supabase. You stay signed in on this phone.</p>
   <form id="signin"><label class="field"><span>Email</span><input class="in" id="em" type="email" autocomplete="username" required></label>
   <label class="field"><span>Password</span><input class="in" id="pw" type="password" autocomplete="current-password" required></label>
   <p class="err hide" id="err"></p><button class="btn primary block" id="sib">Sign in</button></form>

@@ -1,6 +1,6 @@
 // Job Agent phone app: keeps the app's own files on the phone so it opens offline. Your data isn't cached here
 // (the page keeps the last loaded list itself); requests to Supabase always go to the network.
-const CACHE = "job-agent-v1";
+const CACHE = "job-agent-v2";
 const FILES = ["./", "./index.html", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES))); self.skipWaiting(); });
 self.addEventListener("activate", e => {
